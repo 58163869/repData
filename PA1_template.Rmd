@@ -1,0 +1,154 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+# Loading required packages into R
+```{r}
+library(knitr)
+library(ggplot2)
+library(dplyr)
+library(plyr)
+```
+
+# Reading the dataset and processing the data
+activity.csv and checking first part of file
+```{r}
+activity <- read.csv("activity.csv")
+
+totalstepsperday <- aggregate(steps ~ date, data = activity, FUN = sum, na.rm = TRUE)
+head(totalstepsperday)
+```
+
+converting dates to Y-M-D format
+```{r}
+activity$date <- as.Date(activity$date, "%Y-%m-%d")
+```
+
+# Creating a histogram with 'total number of steps'
+calculate steps as it relates to date using SUM (per day)
+```{r}
+hist(totalstepsperday$steps, 
+     main="Total Steps per Day", 
+     xlab="Number of Steps per Day", 
+     ylab = "Interval",
+     col="orange",
+     breaks=50)
+```
+
+# Calculate Mean and Median number of steps taken each day
+mean of total steps per day
+```{r}
+msteps <- mean(totalstepsperday$steps)
+msteps
+```
+
+median of total steps per day
+```{r}
+medsteps <- median(totalstepsperday$steps)
+medsteps
+```
+
+check work using summary
+```{r}
+summary(totalstepsperday)
+```
+
+# Create time-series plot for average number of steps taken
+five minute average using steps to interval - FUN = mean instead of sum
+```{r}
+fivemin <- aggregate(steps ~ interval, data = activity, FUN = mean, na.rm = TRUE)
+```
+
+line chart
+```{r}
+plot(x = fivemin$interval, 
+     y = fivemin$steps, 
+     type = "l", 
+     col = "orange",
+     xlab = "5-minute Intervals",
+     ylab = "Average Steps Taken ~ Days",
+     main = "Average Daily Activity Pattern")
+```
+Find 5-minute interval with most steps taken
+```{r}
+maxsteps <- fivemin$interval[which.max(fivemin$steps)]
+maxsteps
+```
+# Strategy for imputing missing data
+Using mean value to replace NA
+```{r}
+activity2 <- activity
+nas <- is.na(activity2$steps)
+avg_interval <- tapply(activity2$steps, activity2$interval, mean, na.rm=TRUE, simplify = TRUE)
+activity2$steps[nas] <- avg_interval[as.character(activity2$interval[nas])]
+names(activity2)
+```
+
+Check for no-NA
+```{r}
+sum(is.na(activity2))
+```
+
+
+# Create histogram for no-NA data
+Setting up the pannel for one row and two columns
+```{r}
+par(mfrow=c(1,2))
+```
+
+Similar analysis without NAs now
+```{r}
+totalstepsperday2 <- aggregate(steps ~ date, data = activity2, FUN = sum, na.rm = TRUE)
+head(totalstepsperday2)
+```
+
+Histogram without the NA values
+```{r}
+hist(totalstepsperday2$steps, 
+     main = "Total Steps per Day (no-NA)", 
+     xlab = "Number of Steps per Day", 
+     ylab = "Interval",
+     col="green",
+     breaks=50)
+```
+
+Histogram with the orginal dataset
+```{r}
+hist(totalstepsperday$steps, 
+     main="Total Steps per Day (Original)", 
+     xlab="Number of Steps per Day", 
+     ylab = "Interval",
+     col="orange",
+     breaks=50)
+```
+
+Resetting the panel
+```{r}
+par(mfrow=c(1,1))
+```
+
+What is the impact of imputing data?
+```{r}
+summary(totalstepsperday)
+
+summary(totalstepsperday2)
+```
+
+# Create panel plot to compare steps during the week or weekend
+Add the new weekend/weekday field
+```{r}
+activity2<- activity2%>%
+        mutate(typeofday= ifelse(weekdays(activity2$date)=="Saturday" | weekdays(activity2$date)=="Sunday", "Weekend", "Weekday"))
+head(activity2)
+```
+Plot - Line chart
+```{r}
+fivemin2<- aggregate(steps ~ interval + typeofday, data = activity2, FUN = mean)
+head(fivemin2)
+
+g <- qplot(interval, steps, data = fivemin2, facets = typeofday~.)
+g + geom_line(size = 1) + ylab("Mean steps") + ggtitle("Average number of steps taken per daytype")
+```
